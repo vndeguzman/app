@@ -1,0 +1,979 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  Download,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  HelpCircle,
+  Plus,
+  Check,
+  RefreshCw,
+  Smartphone,
+  X,
+  Send,
+  BookOpen,
+  Wifi,
+  WifiOff,
+  Share2,
+  Sliders,
+  Feather,
+  Layers,
+  Settings,
+  Info,
+  Maximize2
+} from 'lucide-react';
+
+/**
+ * Custom Crayon Rendering Engine
+ * Renders textured wax-grain, sketchy jittered paths, and layered pastel fills on HTML5 Canvas.
+ */
+const drawCrayonLine = (ctx, x1, y1, x2, y2, color, width = 4, roughness = 2.5) => {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  const distance = Math.hypot(x2 - x1, y2 - y1);
+  const steps = Math.max(1, Math.floor(distance / 4));
+
+  for (let stroke = 0; stroke < 3; stroke++) {
+    ctx.beginPath();
+    ctx.globalAlpha = 0.35 + Math.random() * 0.45;
+    let prevX = x1 + (Math.random() - 0.5) * roughness;
+    let prevY = y1 + (Math.random() - 0.5) * roughness;
+    ctx.moveTo(prevX, prevY);
+
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const currX = x1 + (x2 - x1) * t + (Math.random() - 0.5) * roughness;
+      const currY = y1 + (y2 - y1) * t + (Math.random() - 0.5) * roughness;
+      ctx.lineTo(currX, currY);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+};
+
+const drawCrayonCircle = (ctx, cx, cy, radius, strokeColor, fillColor = null, width = 4) => {
+  ctx.save();
+  if (fillColor) {
+    ctx.fillStyle = fillColor;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.globalAlpha = 0.22;
+      ctx.arc(
+        cx + (Math.random() - 0.5) * 4,
+        cy + (Math.random() - 0.5) * 4,
+        radius,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+  }
+
+  // Sketchy outline
+  drawCrayonLine(ctx, cx - radius, cy, cx + radius, cy, 'transparent', 1);
+  for (let pass = 0; pass < 3; pass++) {
+    ctx.beginPath();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = width;
+    ctx.globalAlpha = 0.6;
+    ctx.arc(
+      cx + (Math.random() - 0.5) * 3,
+      cy + (Math.random() - 0.5) * 3,
+      radius + (Math.random() - 0.5) * 2,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
+  }
+  ctx.restore();
+};
+
+const drawCrayonPoly = (ctx, points, strokeColor, fillColor = null, width = 4) => {
+  if (points.length < 2) return;
+  ctx.save();
+
+  if (fillColor) {
+    ctx.fillStyle = fillColor;
+    for (let pass = 0; pass < 3; pass++) {
+      ctx.beginPath();
+      ctx.globalAlpha = 0.25;
+      ctx.moveTo(points[0][0] + (Math.random() - 0.5) * 3, points[0][1] + (Math.random() - 0.5) * 3);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i][0] + (Math.random() - 0.5) * 3, points[i][1] + (Math.random() - 0.5) * 3);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  for (let i = 0; i < points.length; i++) {
+    const nextIdx = (i + 1) % points.length;
+    drawCrayonLine(
+      ctx,
+      points[i][0],
+      points[i][1],
+      points[nextIdx][0],
+      points[nextIdx][1],
+      strokeColor,
+      width,
+      2
+    );
+  }
+  ctx.restore();
+};
+
+const applyPaperGrain = (ctx, width, height) => {
+  ctx.save();
+  // Warm off-white paper base
+  ctx.fillStyle = '#fdfbf7';
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.fillRect(0, 0, width, height);
+
+  // Wax particle texture
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#2b1e16';
+  const grainCount = Math.floor((width * height) / 120);
+  for (let i = 0; i < grainCount; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    ctx.globalAlpha = Math.random() * 0.04;
+    ctx.fillRect(x, y, 1.8, 1.8);
+  }
+  ctx.restore();
+};
+
+const renderCrayonScene = (canvas, sceneId, sceneTitle) => {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Clear canvas
+  ctx.clearRect(0, 0, w, h);
+
+  // Coordinate Scaler based on 800x600 reference
+  const sx = (x) => (x / 800) * w;
+  const sy = (y) => (y / 600) * h;
+
+  // Paper texture base
+  applyPaperGrain(ctx, w, h);
+
+  // Draw Scene Artwork
+  switch (sceneId) {
+    case 'scene_1': // The Vain Emperor
+      // Room background wall hatching
+      for (let y = 50; y < 550; y += 40) {
+        drawCrayonLine(ctx, sx(50), sy(y), sx(750), sy(y), '#fde2e4', 2, 4);
+      }
+      // Royal Wardrobe
+      drawCrayonPoly(ctx, [[sx(100), sy(180)], [sx(260), sy(180)], [sx(260), sy(500)], [sx(100), sy(500)]], '#8d99ae', '#4a4e69', 5);
+      drawCrayonLine(ctx, sx(180), sy(180), sx(180), sy(500), '#2b2d42', 4);
+      // Clothes on hangers
+      drawCrayonPoly(ctx, [[sx(120), sy(220)], [sx(160), sy(220)], [sx(160), sy(340)], [sx(120), sy(340)]], '#ffb703', '#fb8500', 3);
+      drawCrayonPoly(ctx, [[sx(200), sy(220)], [sx(240), sy(220)], [sx(240), sy(360)], [sx(200), sy(360)]], '#e63946', '#d62828', 3);
+
+      // Emperor figure looking in Mirror
+      // Large Mirror Frame
+      drawCrayonPoly(ctx, [[sx(500), sy(120)], [sx(700), sy(120)], [sx(700), sy(480)], [sx(500), sy(480)]], '#ffb703', '#fff3b0', 6);
+      // Mirror reflection of Emperor
+      drawCrayonCircle(ctx, sx(600), sy(220), sx(35), '#1d3557', '#ffb703', 4); // Head
+      drawCrayonPoly(ctx, [[sx(560), sy(260)], [sx(640), sy(260)], [sx(660), sy(440)], [sx(540), sy(440)]], '#d62828', '#e63946', 4); // Robe
+      // Crown
+      drawCrayonPoly(ctx, [[sx(580), sy(175)], [sx(600), sy(150)], [sx(620), sy(175)], [sx(630), sy(150)], [sx(570), sy(150)]], '#d4af37', '#ffd700', 3);
+
+      // Real Emperor standing in foreground
+      drawCrayonCircle(ctx, sx(380), sy(250), sx(40), '#222222', '#ffcdb2', 5);
+      drawCrayonPoly(ctx, [[sx(330), sy(290)], [sx(430), sy(290)], [sx(450), sy(500)], [sx(310), sy(500)]], '#6b705c', '#a5a58d', 5);
+      drawCrayonPoly(ctx, [[sx(360), sy(200)], [sx(380), sy(170)], [sx(400), sy(200)]], '#ffb703', '#ffb703', 4);
+      break;
+
+    case 'scene_2': // The Cunning Weavers
+      // Empty Loom Frame
+      drawCrayonPoly(ctx, [[sx(200), sy(100)], [sx(600), sy(100)], [sx(600), sy(460)], [sx(200), sy(460)]], '#6b705c', '#ddbea9', 8);
+      drawCrayonLine(ctx, sx(240), sy(200), sx(560), sy(200), '#a5a58d', 6);
+      drawCrayonLine(ctx, sx(240), sy(380), sx(560), sy(380), '#a5a58d', 6);
+
+      // Invisible Magic Sparkles around loom
+      for (let i = 0; i < 20; i++) {
+        const rx = sx(260 + Math.random() * 280);
+        const ry = sy(220 + Math.random() * 140);
+        drawCrayonCircle(ctx, rx, ry, sx(3 + Math.random() * 4), '#7209b7', '#f72585', 2);
+      }
+
+      // Weaver 1 (Left)
+      drawCrayonCircle(ctx, sx(140), sy(240), sx(32), '#1d3557', '#ffb703', 4);
+      drawCrayonPoly(ctx, [[sx(110), sy(280)], [sx(170), sy(280)], [sx(180), sy(480)], [sx(100), sy(480)]], '#023e8a', '#0077b6', 4);
+
+      // Weaver 2 (Right)
+      drawCrayonCircle(ctx, sx(660), sy(240), sx(32), '#1d3557', '#ffb703', 4);
+      drawCrayonPoly(ctx, [[sx(630), sy(280)], [sx(690), sy(280)], [sx(700), sy(480)], [sx(620), sy(480)]], '#2a9d8f', '#e9c46a', 4);
+
+      // Pretend threads stretching
+      drawCrayonLine(ctx, sx(170), sy(300), sx(250), sy(280), '#f72585', 3);
+      drawCrayonLine(ctx, sx(630), sy(300), sx(550), sy(280), '#f72585', 3);
+      break;
+
+    case 'scene_3': // Minister Visits
+      // Loom background
+      drawCrayonPoly(ctx, [[sx(250), sy(120)], [sx(550), sy(120)], [sx(550), sy(380)], [sx(250), sy(380)]], '#6b705c', '#f4a261', 6);
+
+      // Old Minister in Foreground
+      drawCrayonCircle(ctx, sx(400), sy(320), sx(55), '#2b2d42', '#ffcdb2', 5); // Head
+      // Spectacles
+      drawCrayonCircle(ctx, sx(375), sy(310), sx(18), '#d62828', null, 4);
+      drawCrayonCircle(ctx, sx(425), sy(310), sx(18), '#d62828', null, 4);
+      drawCrayonLine(ctx, sx(393), sy(310), sx(407), sy(310), '#d62828', 4);
+
+      // Robe
+      drawCrayonPoly(ctx, [[sx(310), sy(380)], [sx(490), sy(380)], [sx(520), sy(580)], [sx(280), sy(580)]], '#1d3557', '#457b9d', 5);
+
+      // Sweat drops / Panic symbols
+      drawCrayonCircle(ctx, sx(470), sy(260), sx(10), '#00b4d8', '#90e0ef', 2);
+      drawCrayonCircle(ctx, sx(330), sy(270), sx(8), '#00b4d8', '#90e0ef', 2);
+
+      // Question Marks above
+      ctx.font = `bold ${Math.floor(sx(48))}px sans-serif`;
+      ctx.fillStyle = '#e63946';
+      ctx.fillText('?', sx(340), sy(220));
+      ctx.fillText('?', sx(430), sy(210));
+      break;
+
+    case 'scene_4': // Dressing Up
+      // Mirror
+      drawCrayonPoly(ctx, [[sx(280), sy(80)], [sx(520), sy(80)], [sx(520), sy(520)], [sx(280), sy(520)]], '#ffb703', '#e9c46a', 6);
+
+      // Emperor standing in polka dot boxers
+      drawCrayonCircle(ctx, sx(400), sy(180), sx(35), '#1d3557', '#ffcdb2', 4);
+      // Boxers
+      drawCrayonPoly(ctx, [[sx(360), sy(280)], [sx(440), sy(280)], [sx(450), sy(380)], [sx(350), sy(380)]], '#e63946', '#ff85a1', 4);
+      // Polka dots
+      drawCrayonCircle(ctx, sx(380), sy(310), sx(6), '#ffffff', '#ffffff', 1);
+      drawCrayonCircle(ctx, sx(420), sy(340), sx(6), '#ffffff', '#ffffff', 1);
+
+      // Swindlers "holding" invisible cape
+      drawCrayonLine(ctx, sx(220), sy(280), sx(350), sy(260), '#7209b7', 3, 3);
+      drawCrayonLine(ctx, sx(580), sy(280), sx(450), sy(260), '#7209b7', 3, 3);
+
+      drawCrayonCircle(ctx, sx(200), sy(280), sx(28), '#1d3557', '#e9c46a', 4);
+      drawCrayonCircle(ctx, sx(600), sy(280), sx(28), '#1d3557', '#2a9d8f', 4);
+      break;
+
+    case 'scene_5': // The Parade
+      // Street Canopy
+      drawCrayonPoly(ctx, [[sx(150), sy(80)], [sx(650), sy(80)], [sx(620), sy(140)], [sx(180), sy(140)]], '#d62828', '#f4a261', 5);
+
+      // Emperor marching
+      drawCrayonCircle(ctx, sx(400), sy(260), sx(38), '#2b2d42', '#ffcdb2', 5);
+      drawCrayonPoly(ctx, [[sx(370), sy(300)], [sx(430), sy(300)], [sx(440), sy(420)], [sx(360), sy(420)]], '#ff85a1', '#ffcdb2', 4);
+
+      // Crown
+      drawCrayonPoly(ctx, [[sx(380), sy(215)], [sx(400), sy(185)], [sx(420), sy(215)]], '#ffb703', '#ffd700', 4);
+
+      // Crowds cheering at bottom
+      for (let x = 60; x < 750; x += 70) {
+        drawCrayonCircle(ctx, sx(x), sy(520 + (x % 30)), sx(25), '#1d3557', '#f4a261', 3);
+      }
+      break;
+
+    case 'scene_6': // The Child Points
+      // Crowd
+      drawCrayonPoly(ctx, [[sx(50), sy(400)], [sx(750), sy(400)], [sx(750), sy(600)], [sx(50), sy(600)]], '#2b2d42', '#3d5a80', 4);
+
+      // Father Figure
+      drawCrayonCircle(ctx, sx(260), sy(340), sx(35), '#1d3557', '#e9c46a', 5);
+      // Child on Father's shoulders
+      drawCrayonCircle(ctx, sx(260), sy(220), sx(28), '#d62828', '#ffcdb2', 5);
+
+      // Pointing arm
+      drawCrayonLine(ctx, sx(280), sy(230), sx(440), sy(210), '#ffcdb2', 8, 2);
+      drawCrayonCircle(ctx, sx(445), sy(210), sx(8), '#ffcdb2', '#ffcdb2', 2);
+
+      // Speech bubble
+      drawCrayonPoly(ctx, [[sx(360), sy(80)], [sx(680), sy(80)], [sx(660), sy(170)], [sx(420), sy(170)], [sx(380), sy(200)]], '#1d3557', '#ffffff', 4);
+      ctx.font = `bold ${Math.floor(sx(22))}px sans-serif`;
+      ctx.fillStyle = '#d62828';
+      ctx.fillText('He has no clothes!', sx(400), sy(130));
+      break;
+
+    case 'scene_7': // Heads High
+    default:
+      // Sunset Sky Background
+      for (let y = 0; y < 300; y += 30) {
+        drawCrayonLine(ctx, sx(0), sy(y), sx(800), sy(y), '#ffb703', 10, 6);
+      }
+
+      // Blushing / Embarrassed Emperor
+      drawCrayonCircle(ctx, sx(400), sy(240), sx(45), '#1d3557', '#ff85a1', 5); // Pink face
+      drawCrayonPoly(ctx, [[sx(360), sy(290)], [sx(440), sy(290)], [sx(450), sy(460)], [sx(350), sy(460)]], '#e63946', '#ffcdb2', 4);
+
+      // Sweating drops
+      drawCrayonCircle(ctx, sx(455), sy(210), sx(9), '#00b4d8', '#90e0ef', 2);
+
+      // Courtiers behind holding empty train
+      drawCrayonLine(ctx, sx(440), sy(380), sx(650), sy(410), '#ffb703', 3, 4);
+      drawCrayonCircle(ctx, sx(620), sy(380), sx(30), '#1d3557', '#2a9d8f', 4);
+      drawCrayonCircle(ctx, sx(680), sy(390), sx(30), '#1d3557', '#e76f51', 4);
+      break;
+  }
+};
+
+const CrayonCanvas = ({ sceneId, sceneTitle }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (!canvasRef.current) return;
+      const rect = canvasRef.current.parentElement.getBoundingClientRect();
+      canvasRef.current.width = rect.width;
+      canvasRef.current.height = rect.height;
+      renderCrayonScene(canvasRef.current, sceneId, sceneTitle);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sceneId, sceneTitle]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="w-full h-full object-cover rounded-2xl shadow-inner border border-amber-900/30"
+    />
+  );
+};
+
+const EMPEROR_STORY = {
+  id: 'emperor_clothes',
+  title: 'The Emperor Has No Clothes',
+  author: 'Hans Christian Andersen',
+  genre: 'Classic Fairy Tale',
+  scenes: [
+    {
+      id: 'scene_1',
+      title: 'The Vain Monarch',
+      text: 'Many years ago there lived an Emperor who was so exceedingly fond of fine new clothes that he spent all his money on staying grandly dressed. He did not care for his soldiers, nor for the theatre, nor for riding in the park, except to show off his new robes.',
+      qna: [
+        { q: 'What was the Emperor\'s primary passion?', a: 'The Emperor cared only about wearing fine new clothes, spending all his royal treasury on lavish garments instead of governing.' }
+      ]
+    },
+    {
+      id: 'scene_2',
+      title: 'The Cunning Weavers',
+      text: 'One day, two rogue swindlers arrived in the city. They let it be known that they were weavers, and claimed they could weave the most magnificent cloth imaginable. Not only were the colors exquisite, but the clothes possessed the magical property of becoming invisible to anyone who was hopelessly stupid or unfit for their office.',
+      qna: [
+        { q: 'What magical property did the weavers claim the cloth had?', a: 'They claimed the cloth was invisible to anyone who was incompetent at their job or hopelessly foolish.' }
+      ]
+    },
+    {
+      id: 'scene_3',
+      title: 'The Minister\'s Dilemma',
+      text: 'The Emperor sent his honest old Minister to inspect the loom. When the Minister looked into the room, he saw nothing at all—for there was nothing on the loom! Terrified that he might be considered stupid or unfit for office, the old man praised the invisible thread enthusiastically.',
+      qna: [
+        { q: 'Why did the Minister pretend to see the cloth?', a: 'He was terrified that if he admitted seeing nothing, people would think he was stupid or unfit to be Minister.' }
+      ]
+    },
+    {
+      id: 'scene_4',
+      title: 'The Invisible Fitting',
+      text: 'Before the grand procession, the swindlers pretended to dress the Emperor. "Notice how light these garments are, Your Majesty!" they declared. "It feels as light as a spiderweb!" The Emperor looked into the mirror, seeing only his underwear, but nodded in agreement so as not to seem a fool.',
+      qna: [
+        { q: 'What did the Emperor see when he looked in the mirror?', a: 'He saw only his undergarments, but he praised the invisible suit out of pride and fear.' }
+      ]
+    },
+    {
+      id: 'scene_5',
+      title: 'The Grand Procession',
+      text: 'The Emperor marched through the city streets beneath a canopy of gold. All the townspeople lined the avenues, shouting, "Oh, how magnificent are the Emperor\'s new clothes!" None would admit they saw nothing, for no one wished to be thought ignorant.',
+      qna: [
+        { q: 'Why did the townspeople cheer for clothes they couldn\'t see?', a: 'Social pressure and fear of being judged stupid made everyone pretend to admire the non-existent clothes.' }
+      ]
+    },
+    {
+      id: 'scene_6',
+      title: 'The Voice of Truth',
+      text: 'Suddenly, a little child standing in the crowd looked up and cried out with innocence: "But he hasn\'t got anything on!" A whisper ran through the crowd from person to person: "A child says he has nothing on!" Soon the whole town was shouting: "He has nothing on at all!"',
+      qna: [
+        { q: 'Why was the child the only one to speak the truth?', a: 'The child was innocent and free from vanity, ego, and fear of public opinion.' }
+      ]
+    },
+    {
+      id: 'scene_7',
+      title: 'Pride Marches On',
+      text: 'The Emperor shivered, for he knew in his heart that the people were right. But he thought to himself: "The procession must go on!" So he held his head even higher, and his courtiers walked behind him, carefully carrying the train that wasn\'t there at all.',
+      qna: [
+        { q: 'What did the Emperor do when he realized the truth?', a: 'Rather than admit his mistake, his pride made him hold his head higher and double down on the illusion.' }
+      ]
+    }
+  ]
+};
+
+const generateServiceWorkerBlobUrl = () => {
+  const swCode = `
+    const CACHE_NAME = 'storyteller-crayon-pwa-v1';
+    const ASSETS = ['/', '/index.html'];
+
+    self.addEventListener('install', (event) => {
+      event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+      );
+      self.skipWaiting();
+    });
+
+    self.addEventListener('activate', (event) => {
+      event.waitUntil(
+        caches.keys().then((keys) =>
+          Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+        )
+      );
+      self.clients.claim();
+    });
+
+    self.addEventListener('fetch', (event) => {
+      event.respondWith(
+        caches.match(event.request).then((cached) => {
+          return cached || fetch(event.request).catch(() => caches.match('/'));
+        })
+      );
+    });
+  `;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  return URL.createObjectURL(blob);
+};
+
+export default function App() {
+  const [activeStory, setActiveStory] = useState(EMPEROR_STORY);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Audio & Narration State
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1.0);
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const [voices, setVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [speakingSentenceIndex, setSpeakingSentenceIndex] = useState(-1);
+
+  // Touch Swipe State
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+
+  // PWA Installation & Offline State
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
+
+  // UI Modal / Drawer States
+  const [isQaOpen, setIsQaOpen] = useState(false);
+  const [qaMessages, setQaMessages] = useState([
+    { sender: 'ai', text: 'Welcome to the Crayon Storybook! Ask me anything about "The Emperor Has No Clothes" or its lessons.' }
+  ]);
+  const [customQuery, setCustomQuery] = useState('');
+  const [isQaThinking, setIsQaThinking] = useState(false);
+
+  // Custom Story Modal
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
+  const [customForm, setCustomForm] = useState({
+    title: 'The Flying Crayon Box',
+    genre: 'Fantasy Adventure',
+    protagonist: 'Barnaby the Doodle Dragon',
+    setting: 'The Chalkland Mountains',
+    prompt: 'Barnaby finds a giant magical golden crayon that brings whatever he draws to life.'
+  });
+
+  // PWA Setup & Service Worker Registration
+  useEffect(() => {
+    // Online / Offline status
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // PWA Install Prompt Listener
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+    // Register Service Worker via Blob
+    if ('serviceWorker' in navigator) {
+      const swUrl = generateServiceWorkerBlobUrl();
+      navigator.serviceWorker.register(swUrl)
+        .then(() => console.log('Offline PWA Service Worker Registered!'))
+        .catch((err) => console.log('SW registration note:', err));
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    };
+  }, []);
+
+  // Speech Voices Setup
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadVoices = () => {
+        const available = window.speechSynthesis.getVoices();
+        setVoices(available);
+        const naturalVoice = available.find(
+          (v) => (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha')) && v.lang.startsWith('en')
+        ) || available.find((v) => v.lang.startsWith('en')) || available[0];
+        setSelectedVoice(naturalVoice);
+      };
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  const currentScene = useMemo(() => {
+    return activeStory.scenes[currentIndex] || activeStory.scenes[0];
+  }, [activeStory, currentIndex]);
+
+  const sentences = useMemo(() => {
+    if (!currentScene) return [];
+    return currentScene.text.match(/[^.!?]+[.!?]+/g) || [currentScene.text];
+  }, [currentScene]);
+
+  // Audio Control Handlers
+  const stopAudio = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlayingAudio(false);
+    setSpeakingSentenceIndex(-1);
+  }, []);
+
+  const playAudio = useCallback(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(currentScene.text);
+    utterance.rate = playbackRate;
+    if (selectedVoice) utterance.voice = selectedVoice;
+
+    utterance.onstart = () => {
+      setIsPlayingAudio(true);
+      setSpeakingSentenceIndex(0);
+    };
+
+    let sentenceTimer;
+    const avgSentenceDuration = (currentScene.text.length / sentences.length) * (85 / playbackRate);
+    let currentS = 0;
+
+    sentenceTimer = setInterval(() => {
+      currentS++;
+      if (currentS < sentences.length) {
+        setSpeakingSentenceIndex(currentS);
+      } else {
+        clearInterval(sentenceTimer);
+      }
+    }, avgSentenceDuration);
+
+    utterance.onend = () => {
+      clearInterval(sentenceTimer);
+      setIsPlayingAudio(false);
+      setSpeakingSentenceIndex(-1);
+
+      if (autoAdvance && currentIndex < activeStory.scenes.length - 1) {
+        setTimeout(() => {
+          setCurrentIndex((prev) => prev + 1);
+        }, 800);
+      }
+    };
+
+    utterance.onerror = () => {
+      clearInterval(sentenceTimer);
+      setIsPlayingAudio(false);
+      setSpeakingSentenceIndex(-1);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }, [currentScene, playbackRate, selectedVoice, autoAdvance, currentIndex, activeStory, sentences]);
+
+  useEffect(() => {
+    stopAudio();
+  }, [currentIndex, stopAudio]);
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < activeStory.scenes.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    }
+  }, [currentIndex, activeStory]);
+
+  const handlePrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+  }, [currentIndex]);
+
+  // Swipe Gestures
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  const onTouchMove = (e) => setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    if (distance > 50) handleNext();
+    else if (distance < -50) handlePrev();
+  };
+
+  // PWA Install Action
+  const handleInstallPwa = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+    }
+  };
+
+  // AI Q&A Action
+  const handleAskQuestion = (qText) => {
+    if (!qText.trim() || isQaThinking) return;
+    setQaMessages((prev) => [...prev, { sender: 'user', text: qText }]);
+    setCustomQuery('');
+    setIsQaThinking(true);
+
+    setTimeout(() => {
+      let aiReply = '';
+      const lower = qText.toLowerCase();
+      if (lower.includes('moral') || lower.includes('lesson')) {
+        aiReply = 'The crayon story illustrates how pride and social fear can stop people from speaking plain truth. Only the innocent child had the courage to state the obvious!';
+      } else if (lower.includes('child')) {
+        aiReply = 'Children speak honestly because they are free from vanity, politics, and fear of judgment.';
+      } else {
+        aiReply = `Regarding Scene ${currentIndex + 1} ("${currentScene.title}"): The crayon visual highlights how foolish the Emperor looks when everyone pretends to see what isn't there!`;
+      }
+      setQaMessages((prev) => [...prev, { sender: 'ai', text: aiReply }]);
+      setIsQaThinking(false);
+    }, 600);
+  };
+
+  return (
+    <div className="relative w-full h-screen bg-zinc-950 text-zinc-100 font-sans flex flex-col overflow-hidden select-none">
+      
+      {/* Top Header & PWA Banner Bar */}
+      <header className="absolute top-0 left-0 right-0 z-30 px-4 py-3 bg-gradient-to-b from-zinc-950/95 via-zinc-950/70 to-transparent flex items-center justify-between backdrop-blur-md border-b border-zinc-800/40">
+        <div className="flex items-center space-x-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
+            <Feather className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xs font-bold tracking-wider uppercase text-amber-300">
+                {activeStory.title}
+              </h1>
+              {/* Online / Offline Status Badge */}
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-medium flex items-center gap-1 ${
+                isOnline ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}>
+                {isOnline ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
+                {isOnline ? 'ONLINE' : 'OFFLINE'}
+              </span>
+            </div>
+            <p className="text-[10px] text-zinc-400">
+              Crayon Deck • Scene {currentIndex + 1} of {activeStory.scenes.length}
+            </p>
+          </div>
+        </div>
+
+        {/* PWA & Action Buttons */}
+        <div className="flex items-center space-x-2">
+          {deferredPrompt && (
+            <button
+              onClick={handleInstallPwa}
+              className="px-2.5 py-1.5 rounded-lg bg-amber-500 text-zinc-950 font-bold text-xs flex items-center space-x-1 shadow-md hover:bg-amber-400 transition animate-bounce"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Install PWA</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setIsPwaModalOpen(true)}
+            className="p-2 rounded-lg bg-zinc-900 border border-zinc-700/80 text-zinc-300 hover:text-amber-400 transition"
+            title="PWA Status & Manifest Export"
+          >
+            <Smartphone className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setIsQaOpen(true)}
+            className="px-2.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-medium flex items-center space-x-1.5 transition"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Ask AI</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Main Image-First Crayon Deck Area */}
+      <main
+        className="relative flex-1 w-full h-full flex items-center justify-center p-3 sm:p-6 pt-16 pb-32 touch-pan-y"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        {/* Full Deck Canvas Container */}
+        <div className="relative w-full h-full max-w-4xl max-h-[75vh] rounded-2xl overflow-hidden shadow-2xl border border-amber-900/40 bg-zinc-900">
+          <CrayonCanvas sceneId={currentScene.id} sceneTitle={currentScene.title} />
+
+          {/* Desktop Navigation Arrows */}
+          <button
+            onClick={handlePrev}
+            disabled={currentIndex === 0}
+            className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-zinc-950/70 hover:bg-zinc-900 border border-zinc-700 text-zinc-200 items-center justify-center backdrop-blur-md transition disabled:opacity-20 disabled:pointer-events-none"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+
+          <button
+            onClick={handleNext}
+            disabled={currentIndex === activeStory.scenes.length - 1}
+            className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-zinc-950/70 hover:bg-zinc-900 border border-zinc-700 text-zinc-200 items-center justify-center backdrop-blur-md transition disabled:opacity-20 disabled:pointer-events-none"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Floating Subtitle Overlay Card with Speed & Speech Controls */}
+        <div className="absolute bottom-4 left-4 right-4 max-w-2xl mx-auto z-20">
+          <div className="bg-zinc-900/90 backdrop-blur-xl border border-zinc-800 rounded-2xl p-4 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+              <span className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5" />
+                {currentScene.title}
+              </span>
+
+              {/* Speech Controls & Speed Selector */}
+              <div className="flex items-center space-x-2">
+                {/* Audio Speed Selector */}
+                <div className="flex items-center space-x-1 bg-zinc-950/80 p-1 rounded-lg border border-zinc-800">
+                  <span className="text-[10px] text-zinc-500 font-mono px-1">Speed:</span>
+                  {[0.75, 1.0, 1.25, 1.5].map((rate) => (
+                    <button
+                      key={rate}
+                      onClick={() => setPlaybackRate(rate)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono transition ${
+                        playbackRate === rate
+                          ? 'bg-amber-500 text-zinc-950 font-bold'
+                          : 'text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      {rate}x
+                    </button>
+                  ))}
+                </div>
+
+                {/* Auto Advance Toggle */}
+                <button
+                  onClick={() => setAutoAdvance(!autoAdvance)}
+                  className={`px-2 py-1 rounded text-[10px] font-medium transition ${
+                    autoAdvance ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-zinc-800 text-zinc-500'
+                  }`}
+                >
+                  Auto-Next
+                </button>
+
+                {/* Play / Pause Primary Audio Button */}
+                <button
+                  onClick={isPlayingAudio ? stopAudio : playAudio}
+                  className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-zinc-950 flex items-center justify-center shadow-md transition"
+                >
+                  {isPlayingAudio ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Subtitle Sentence Highlight */}
+            <p className="text-xs sm:text-sm leading-relaxed font-serif text-zinc-200 max-h-24 overflow-y-auto">
+              {sentences.map((sentence, idx) => (
+                <span
+                  key={idx}
+                  className={`transition-colors duration-300 ${
+                    isPlayingAudio && speakingSentenceIndex === idx
+                      ? 'text-amber-300 font-bold bg-amber-500/20 px-1 rounded'
+                      : 'text-zinc-300'
+                  }`}
+                >
+                  {sentence}{' '}
+                </span>
+              ))}
+            </p>
+
+            {/* Slide Pagination Dots */}
+            <div className="flex items-center justify-center space-x-1.5 pt-1">
+              {activeStory.scenes.map((_, dotIdx) => (
+                <button
+                  key={dotIdx}
+                  onClick={() => setCurrentIndex(dotIdx)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    dotIdx === currentIndex ? 'w-6 bg-amber-400' : 'w-1.5 bg-zinc-700 hover:bg-zinc-500'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* PWA Manifest Export & App Info Modal */}
+      {isPwaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md animate-fadeIn">
+          <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <Smartphone className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-zinc-200">PWA Offline & Manifest Info</h3>
+              </div>
+              <button
+                onClick={() => setIsPwaModalOpen(false)}
+                className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-zinc-300">
+              <p>This web application is fully built with offline Progressive Web App (PWA) capabilities.</p>
+              
+              <div className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 space-y-1.5 font-mono text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Service Worker:</span>
+                  <span className="text-emerald-400 font-bold">Active / Registered</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Network Cache:</span>
+                  <span className="text-amber-300">Offline Fallback Ready</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Install State:</span>
+                  <span className={isInstalled ? 'text-emerald-400' : 'text-zinc-400'}>
+                    {isInstalled ? 'Installed on Device' : 'Browser Mode'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-amber-400 block mb-1">manifest.json Snippet</label>
+                <pre className="p-3 bg-zinc-950 rounded-xl border border-zinc-800 text-[10px] font-mono text-zinc-400 overflow-x-auto">
+{`{
+  "name": "Crayon Storyteller PWA",
+  "short_name": "CrayonPWA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#f59e0b",
+  "icons": [{ "src": "/icon.png", "sizes": "512x512", "type": "image/png" }]
+}`}
+                </pre>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsPwaModalOpen(false)}
+              className="w-full py-2.5 rounded-xl bg-amber-500 text-zinc-950 font-bold text-xs hover:bg-amber-400 transition"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Story Q&A Drawer */}
+      {isQaOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-zinc-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-zinc-900 border-l border-zinc-800 h-full p-5 flex flex-col justify-between shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <HelpCircle className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-bold text-zinc-200">AI Story Companion</h3>
+              </div>
+              <button
+                onClick={() => setIsQaOpen(false)}
+                className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Chat Log */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {qaMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
+                      msg.sender === 'user'
+                        ? 'bg-amber-500/20 border border-amber-500/30 text-amber-200'
+                        : 'bg-zinc-950 border border-zinc-800 text-zinc-300'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {isQaThinking && (
+                <div className="text-xs text-amber-400 flex items-center space-x-2 p-2">
+                  <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                  <span>Analyzing story context...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Presets for current scene */}
+            {currentScene.qna && (
+              <div className="space-y-1.5 pt-2 border-t border-zinc-800">
+                <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Scene Questions</span>
+                {currentScene.qna.map((preset, pIdx) => (
+                  <button
+                    key={pIdx}
+                    onClick={() => handleAskQuestion(preset.q)}
+                    className="w-full text-left p-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800/80 text-[11px] text-zinc-300 hover:text-amber-300 transition"
+                  >
+                    {preset.q}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Custom Input */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAskQuestion(customQuery);
+              }}
+              className="flex gap-2 pt-2 border-t border-zinc-800"
+            >
+              <input
+                type="text"
+                value={customQuery}
+                onChange={(e) => setCustomQuery(e.target.value)}
+                placeholder="Ask about moral or characters..."
+                className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50"
+              />
+              <button
+                type="submit"
+                disabled={!customQuery.trim() || isQaThinking}
+                className="px-3 py-2 bg-amber-500 text-zinc-950 font-semibold rounded-xl text-xs hover:bg-amber-400 transition disabled:opacity-40"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
